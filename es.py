@@ -4,7 +4,7 @@ from datetime import datetime
 def get_link_es(type_list,gte,lte):
     link = []
     for _type in type_list:
-        es = Elasticsearch(["http://10.11.101.129:9200"])
+        es = Elasticsearch(["http://192.168.143.54:9200"])
         body1 ={
         "query": {
             "bool": {
@@ -56,7 +56,7 @@ def get_link_es(type_list,gte,lte):
 # if __name__ == "__main__":
 #     type_list=['tiktok video']
 #     # format : mm/dd/yyyy hh:mm:ss
-#     gte='11/22/2023 10:00:00'
-#     lte='11/23/2023 10:00:00'
+#     gte='12/20/2023 17:00:00'
+#     lte='12/21/2023 17:00:00'
 #     link = get_link_es(type_list,gte,lte)
 #     print(link)

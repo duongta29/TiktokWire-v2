@@ -37,6 +37,7 @@ with open(config.config_path, "r", encoding='latin-1') as f:
 chrome_options = webdriver.ChromeOptions()
 for item in listArgument:
         chrome_options.add_argument(item)
+chrome_options.add_argument(f'--proxy-server={config.proxy}')
 
 
 class CrawlManage(object):
@@ -180,15 +181,15 @@ class CrawlManage(object):
                 return
             retry_extract(post, retry_time)
             posts.append(post)
-            
-            if option != "update_post":
-            # update post to data_crawled and write post to result
-                update_json_file(file_path="data_crawled.json", new_link=link)
-            write_post_to_file(post=post)
-            
-            # crawl cmt and push kafka
-            if posts != [] :
+            if option == "update_post":
+                #sroll to crawl comment
                 self.scroll_comment()
+            else:
+                # update post to data_crawled and write post to result
+                update_json_file(file_path="data_crawled.json", new_link=link)
+            # crawl cmt and push kafka
+            write_post_to_file(post=post)
+            if posts != [] : 
                 comments = self.crawl_comment()
                 del self.driver.response_interceptor
                 # print("push kafka")
@@ -248,7 +249,6 @@ class CrawlManage(object):
         for link in link7:
             link1.append(link)
         return link1
-    
 
     def update_post(self):
         link_list = self.get_es()
@@ -276,21 +276,21 @@ class CrawlManage(object):
         keywords=[]
         # time.sleep(3)
         if option == "update_post":
-            schedule.every().day.at("11:25").do(self.update_post)
+            schedule.every().day.at("17:20").do(self.update_post)
             while True:
                 schedule.run_pending()
                 time.sleep(1)
         else:
             keywords = self.parse_keyword(option, page)
-        for keyword in keywords:
-            link_list = self.get_link_list(keyword)
-            for link in link_list:
-                start = time.time()
-                self.crawl_post(link)
-                end = time.time()
-                print(f"Time for video {link} is {end - start}")
-        time.sleep(30*60)
-        return self.run("")
+            for keyword in keywords:
+                link_list = self.get_link_list(keyword)
+                for link in link_list:
+                    start = time.time()
+                    self.crawl_post(link)
+                    end = time.time()
+                    print(f"Time for video {link} is {end - start}")
+            time.sleep(30*60)
+            return self.run("")
     def shorten_links(tiktok_links):
         link_dict = {}
         for link in tiktok_links:
@@ -430,6 +430,7 @@ class CrawlManage(object):
                 #     vidList = [line.strip() for line in f.readlines()]
         elif option == "search_user": 
             self.driver.get(keyword)
+            time.sleep(5)
             # captcha.check_captcha(self.driver)
             vidList = self.scroll(xpath=self.XPATH_VIDEO_USER)
         elif option == "tag":
