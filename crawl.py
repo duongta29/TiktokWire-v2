@@ -2,6 +2,7 @@ from seleniumwire import webdriver
 from selenium.webdriver.common.by import By
 import time
 import json
+import schedule
 from seleniumwire.utils import decode as sw_decode
 import time
 import config 
@@ -21,7 +22,7 @@ from es import *
 from datetime import datetime, timedelta
 import clipboard
 from get_link_from_android import *
-producer = KafkaProducer(bootstrap_servers=["10.11.101.129:9092"])
+producer = KafkaProducer(bootstrap_servers=["192.168.143.54:9092"])
 
 
 
@@ -248,6 +249,21 @@ class CrawlManage(object):
             link1.append(link)
         return link1
     
+
+    def update_post(self):
+        link_list = self.get_es()
+        start_time = datetime.now()
+        end_time = start_time + timedelta(hours=23, minutes=15)
+        
+        for link in link_list:
+            if datetime.now() < end_time:
+                start = time.time()
+                self.crawl_post(link)
+                end = time.time()
+                print(f"Time for video {link} is {end - start}")
+            else:
+                break
+    
     def run(self, page):
         count = 0
         self.driver.get("https://www.tiktok.com/")
@@ -260,14 +276,14 @@ class CrawlManage(object):
         keywords=[]
         # time.sleep(3)
         if option == "update_post":
-            keywords.append(1)
+            schedule.every().day.at("11:25").do(self.update_post)
+            while True:
+                schedule.run_pending()
+                time.sleep(1)
         else:
             keywords = self.parse_keyword(option, page)
         for keyword in keywords:
-            if option == "update_post":
-                link_list = self.get_es()
-            else:
-                link_list = self.get_link_list(keyword)
+            link_list = self.get_link_list(keyword)
             for link in link_list:
                 start = time.time()
                 self.crawl_post(link)
