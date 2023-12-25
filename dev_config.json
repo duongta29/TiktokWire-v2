@@ -64,6 +64,8 @@
     ],
     "mode": {
         "id": 1,
+        "start_time_run":"14:20:00",
+        "range_date": [1,7],
         "name": "update_post",
         "keyword":["phản động daklak", "phản động cộng sản", "việt tân","tham nhũng","tổng bí thư","Nguyễn Phú Trọng","Ông Trọng","Trọng Lẫn","Tổng Trọng","Chủ Bí Trọng","Thủ tướng","Phạm Minh Chính","Thủ tướng Chính","Vương Đình Huệ","Trọng lú","Chủ tịch quốc hội"
         ],

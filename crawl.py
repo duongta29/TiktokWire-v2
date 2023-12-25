@@ -30,9 +30,9 @@ producer = KafkaProducer(bootstrap_servers=["192.168.143.54:9092"])
 ### OTHER ###
 with open(config.config_path, "r", encoding='latin-1') as f:
     data = f.read()
-    data = json.loads(data)
-    option = data["mode"]["name"]
-    listArgument = data["listArgument"]
+    data_config = json.loads(data)
+    option = data_config["mode"]["name"]
+    listArgument = data_config["listArgument"]
 
 chrome_options = webdriver.ChromeOptions()
 for item in listArgument:
@@ -231,16 +231,24 @@ class CrawlManage(object):
 
         
     def get_es(self):
+        range_date = data_config["mode"]["range_date"]
         format_str = "%m/%d/%Y %H:%M:%S"
         now = datetime.now()
-        yesterday = now - timedelta(days=1)
-        yesterday_start = datetime(yesterday.year, yesterday.month, yesterday.day, 0, 0, 0)
-        today_start = datetime(now.year, now.month, now.day, 0, 0, 0)
-        yesterday_start = yesterday_start.strftime(format_str)
-        today_start = today_start.strftime(format_str)
-        link1 = get_link_es(type_list=['tiktok video'], gte = yesterday_start, lte=today_start)
-        gte7 = now - timedelta(days=7)
-        lte7 = now - timedelta(days=6)
+        # yesterday = now - timedelta(days=1)
+        # yesterday_start = datetime(yesterday.year, yesterday.month, yesterday.day, 0, 0, 0)
+        # today_start = datetime(now.year, now.month, now.day, 0, 0, 0)
+        # yesterday_start = yesterday_start.strftime(format_str)
+        # today_start = today_start.strftime(format_str)
+        gte1 = now - timedelta(days=int(range_date[0]))
+        lte1 = now - timedelta(days=int(range_date[0])-1)
+        gte1 = gte1.replace(hour=0, minute=0, second=0, microsecond=0)
+        lte1 = lte1.replace(hour=0, minute=0, second=0, microsecond=0)
+        gte1_str = gte1.strftime(format_str)
+        lte1_str = lte1.strftime(format_str)
+        link1 = get_link_es(type_list=['tiktok video'], gte = gte1_str, lte=lte1_str)
+        # link1 = get_link_es(type_list=['tiktok video'], gte = yesterday_start, lte=today_start)
+        gte7 = now - timedelta(days=int(range_date[1]))
+        lte7 = now - timedelta(days=int(range_date[1])-1)
         gte7 = gte7.replace(hour=0, minute=0, second=0, microsecond=0)
         lte7 = lte7.replace(hour=0, minute=0, second=0, microsecond=0)
         gte7_str = gte7.strftime(format_str)
@@ -254,7 +262,6 @@ class CrawlManage(object):
         link_list = self.get_es()
         start_time = datetime.now()
         end_time = start_time + timedelta(hours=23, minutes=15)
-        
         for link in link_list:
             if datetime.now() < end_time:
                 start = time.time()
@@ -281,7 +288,8 @@ class CrawlManage(object):
         key_search = []
         # time.sleep(3)
         if option == "update_post":
-            schedule.every().day.at("12:00").do(self.update_post)
+            start_time_run = data_config["mode"]["start_time_run"]
+            schedule.every().day.at(start_time_run).do(self.update_post)
             while True:
                 schedule.run_pending()
                 time.sleep(1)
