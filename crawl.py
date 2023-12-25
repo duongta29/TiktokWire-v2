@@ -264,8 +264,7 @@ class CrawlManage(object):
             else:
                 break
     
-    def run(self, page):
-        count = 0
+    def run(self):
         self.driver.get("https://www.tiktok.com/")
         time.sleep(2)
         captcha.check_captcha(self.driver)
@@ -296,7 +295,7 @@ class CrawlManage(object):
                     end = time.time()
                     print(f"Time for video {link} is {end - start}")
             time.sleep(30*60)
-            return self.run("")
+            return self.run()
         
     def shorten_links(tiktok_links):
         link_dict = {}
