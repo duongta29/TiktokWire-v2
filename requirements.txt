@@ -1,0 +1,5 @@
+selenium-wire==5.1.0
+pickle
+clipboard
+kafka
+elasticsearch

@@ -9,7 +9,6 @@ import config
 import json
 import pickle
 from typing import List
-from unidecode import unidecode
 from post_tiktok_etractor import PostTikTokExtractor, PostCommentExtractor, PostReplyExtractor
 from utils.common_utils import CommonUtils
 import config
@@ -22,7 +21,9 @@ from es import *
 from datetime import datetime, timedelta
 import clipboard
 from get_link_from_android import *
+import requests
 producer = KafkaProducer(bootstrap_servers=["192.168.143.54:9092"])
+api_address='http://172.168.200.200:8000'
 
 
 
@@ -54,13 +55,13 @@ class CrawlManage(object):
         self.comments = []
         self.reply = []
 
-    def parse_keyword(self, page) -> List[str]:
+    def parse_keyword(self) -> List[str]:
         keyword_list: List[str] = []
         with open(self.config.config_path, "r", encoding='utf-8') as f:
             data = f.read()
             keyword_list_raw = json.loads(data)
             if option == "search_user":
-                keyword_list = keyword_list_raw["mode"][f"list_page{page}"]
+                keyword_list = keyword_list_raw["mode"][f"list_page"]
             elif option == "search_post_android" or option == "search_post":
                 keyword_list = keyword_list_raw["mode"]["keyword"]
         return keyword_list
@@ -149,6 +150,34 @@ class CrawlManage(object):
                         time.sleep(2)
                     except Exception as e:
                         BOOL = False
+    
+    def get_links(self, table_name, object_id):
+        url = f"{api_address}/get-links/{table_name}/{object_id}"
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                result = response.json()
+                return result
+            else:
+                print(f"Error: {response.status_code} - {response.text}")
+        except requests.exceptions.RequestException as e:
+            print(f"Error: {str(e)}")
+
+    # API insert link đã crawl vào db
+    def insert(self,table_name, object_id, links):
+        if isinstance(links, list):
+            links = ",".join(links)
+        url = f"{api_address}/insert/{table_name}/{object_id}?new_links={links}"
+        try:
+            response = requests.post(url)
+            if response.status_code == 200:
+                result = response.json()
+                return result
+            else:
+                print(f"Error: {response.status_code} - {response.text}")
+        except requests.exceptions.RequestException as e:
+            print(f"Error: {str(e)}")
+
             
     def crawl_post(self, link):
         self.driver.response_interceptor = self.interceptor_post
@@ -186,6 +215,9 @@ class CrawlManage(object):
                 self.scroll_comment()
             else:
                 # update post to data_crawled and write post to result
+                page_name = link.split('@')[1].split('/')[0]
+                video_id = link.split('/')[-1]
+                self.insert(table_name="tiktok_video",object_id=page_name, links=[video_id]) 
                 update_json_file(file_path="data_crawled.json", new_link=link)
             # crawl cmt and push kafka
             write_post_to_file(post=post)
@@ -228,35 +260,22 @@ class CrawlManage(object):
                 return 1
         else:
                 return 0
-
-        
+       
     def get_es(self):
         range_date = data_config["mode"]["range_date"]
         format_str = "%m/%d/%Y %H:%M:%S"
         now = datetime.now()
-        # yesterday = now - timedelta(days=1)
-        # yesterday_start = datetime(yesterday.year, yesterday.month, yesterday.day, 0, 0, 0)
-        # today_start = datetime(now.year, now.month, now.day, 0, 0, 0)
-        # yesterday_start = yesterday_start.strftime(format_str)
-        # today_start = today_start.strftime(format_str)
-        gte1 = now - timedelta(days=int(range_date[0]))
-        lte1 = now - timedelta(days=int(range_date[0])-1)
-        gte1 = gte1.replace(hour=0, minute=0, second=0, microsecond=0)
-        lte1 = lte1.replace(hour=0, minute=0, second=0, microsecond=0)
-        gte1_str = gte1.strftime(format_str)
-        lte1_str = lte1.strftime(format_str)
-        link1 = get_link_es(type_list=['tiktok video'], gte = gte1_str, lte=lte1_str)
-        # link1 = get_link_es(type_list=['tiktok video'], gte = yesterday_start, lte=today_start)
-        gte7 = now - timedelta(days=int(range_date[1]))
-        lte7 = now - timedelta(days=int(range_date[1])-1)
-        gte7 = gte7.replace(hour=0, minute=0, second=0, microsecond=0)
-        lte7 = lte7.replace(hour=0, minute=0, second=0, microsecond=0)
-        gte7_str = gte7.strftime(format_str)
-        lte7_str = lte7.strftime(format_str)
-        link7 = get_link_es(type_list=['tiktok video'], gte = gte7_str, lte=lte7_str)
-        for link in link7:
-            link1.append(link)
-        return link1
+        link_to_update = []
+        for range_value in range_date:
+            gte = now - timedelta(days=int(range_value))
+            lte = now - timedelta(days=int(range_value)-1)
+            gte = gte.replace(hour=0, minute=0, second=0, microsecond=0)
+            lte = lte.replace(hour=0, minute=0, second=0, microsecond=0)
+            gte_str = gte.strftime(format_str)
+            lte_str = lte.strftime(format_str)
+            link = get_link_es(type_list=['tiktok video'], gte=gte_str, lte=lte_str)
+            link_to_update.extend(link)
+        return link_to_update
 
     def update_post(self):
         link_list = self.get_es()
@@ -319,26 +338,24 @@ class CrawlManage(object):
                 # Nếu chưa tồn tại, tạo một cặp key-value mới
                 link_dict[page_name] = [video_id]
     
-    def check_link_crawled(self,data_crawled, link):
+    def check_link_crawled(self, link):
         id_check = {}
         page_name = link.split('@')[1].split('/')[0]
         video_id = link.split('/')[-1]
-        if page_name in data_crawled:
-            list_id = data_crawled[page_name]
-            if video_id in list_id:
+        data_crawled = self.get_links(table_name="tiktok_video", object_id= page_name)
+        if data_crawled:
+            if video_id in data_crawled["links"]:
                 return True
             else:
                 return False
         else:
             return False
-        
 
     def scroll(self, xpath):
         vidList = []
         # time.sleep(3)
-        with open('data_crawled.json', 'r') as file:
-            data_crawled = json.load(file)
-        
+        # with open('data_crawled.json', 'r') as file:
+        #     data_crawled = json.load(file)
         try:
             captcha.check_captcha(self.driver)
         except:
@@ -351,7 +368,6 @@ class CrawlManage(object):
                 print("No post")
             except:
                 no_post =""
-        
             while(len(vid_list_elem) != count and len(vid_list_elem) < self.config.count_of_vid and no_post != "No content"):
                 # data-e2e="search-common-link"
                 count = len(vid_list_elem)
@@ -359,13 +375,12 @@ class CrawlManage(object):
                     vid_list_elem = self.driver.find_elements(By.XPATH, xpath)
                 except:
                     vid_list_elem = self.driver.find_elements(By.XPATH, xpath)
-                
+                i = 0
                 for vid in vid_list_elem:
-                    i = 0
                     link = vid.find_element(By.TAG_NAME, 'a').get_attribute('href')
                     if link in vidList:
                         continue
-                    check = self.check_link_crawled(data_crawled,link)
+                    check = self.check_link_crawled(link)
                     if check:
                         i += 1
                         continue
@@ -398,9 +413,8 @@ class CrawlManage(object):
                 self.driver.refresh()
                 return self.scroll(xpath)
             print("Count of links: ", len(vidList))
-            
             for vid in vidList:
-                check_vid = self.check_link_crawled(data_crawled, vid)
+                check_vid = self.check_link_crawled(vid)
                 vidList.remove(vid)
         return vidList
 

@@ -66,10 +66,11 @@
         "id": 1,
         "start_time_run":"14:20:00",
         "range_date": [1,7],
-        "name": "update_post",
+        "name": "search_user",
         "keyword":["phản động daklak", "phản động cộng sản", "việt tân","tham nhũng","tổng bí thư","Nguyễn Phú Trọng","Ông Trọng","Trọng Lẫn","Tổng Trọng","Chủ Bí Trọng","Thủ tướng","Phạm Minh Chính","Thủ tướng Chính","Vương Đình Huệ","Trọng lú","Chủ tịch quốc hội"
         ],
         "list_page": [
+            "https://www.tiktok.com/@vnch94",
             "https://www.tiktok.com/@okemxinthua",
             "https://www.tiktok.com/@thonguyen220033gm",
             "https://www.tiktok.com/@cafef_official",
@@ -81,7 +82,7 @@
             "https://www.tiktok.com/@vtv24news",
             "https://www.tiktok.com/@truyenhinhvov",
             "https://www.tiktok.com/@thucnguyen_jp",
-            "https://www.tiktok.com/@vnch94",
+            
             "https://www.tiktok.com/@vnchmuomnam",
             "https://www.tiktok.com/@kocotailhoan10877",
             "https://www.tiktok.com/@nhayui",
