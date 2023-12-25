@@ -44,7 +44,7 @@ class CrawlManage(object):
     XPATH_VIDEO_SEARCH = '//*[contains(@class, "DivItemContainerForSearch")]'
     XPATH_VIDEO_OTHER = '//*[contains(@class, "DivItemContainerV2")]'
     # XPATH_VIDEO_OTHER = '//*[@class="tiktok-x6y88p-DivItemContainerV2 e19c29qe9"]'
-    XPATH_VIDEO_USER = '//*[@data-e2e="user-post-item-desc"]'
+    XPATH_VIDEO_PAGE = '//*[@data-e2e="user-post-item-desc"]'
 
     def __init__(self, driver = webdriver.Chrome(options=chrome_options) , config=config) -> None:
         self.driver = driver
@@ -54,7 +54,7 @@ class CrawlManage(object):
         self.comments = []
         self.reply = []
 
-    def parse_keyword(self, option, page) -> List[str]:
+    def parse_keyword(self, page) -> List[str]:
         keyword_list: List[str] = []
         with open(self.config.config_path, "r", encoding='utf-8') as f:
             data = f.read()
@@ -269,21 +269,27 @@ class CrawlManage(object):
         self.driver.get("https://www.tiktok.com/")
         time.sleep(2)
         captcha.check_captcha(self.driver)
-        ttLogin = TiktokLogin(self.driver, username = "xinhxinh29")
-        ttLogin.loginTiktokwithCookie()
-        # self.check_login_div()
+        ttLogin = TiktokLogin(self.driver, username = "babysunny2906")
+        try:
+            ttLogin.loginTiktokwithCookie()
+        except Exception as e:
+            print("Retry to login Exception {e}")
+            print("Try login with pass and save new cookie")
+            new_cookies = ttLogin.save_cookie()
+            if new_cookies:
+                print("Done save new cookie")
         print("Start crawl")
-        keywords=[]
+        key_search = []
         # time.sleep(3)
         if option == "update_post":
-            schedule.every().day.at("17:20").do(self.update_post)
+            schedule.every().day.at("12:00").do(self.update_post)
             while True:
                 schedule.run_pending()
                 time.sleep(1)
         else:
-            keywords = self.parse_keyword(option, page)
-            for keyword in keywords:
-                link_list = self.get_link_list(keyword)
+            key_search = self.parse_keyword()
+            for key in key_search:
+                link_list = self.get_link_list(key)
                 for link in link_list:
                     start = time.time()
                     self.crawl_post(link)
@@ -291,13 +297,13 @@ class CrawlManage(object):
                     print(f"Time for video {link} is {end - start}")
             time.sleep(30*60)
             return self.run("")
+        
     def shorten_links(tiktok_links):
         link_dict = {}
         for link in tiktok_links:
             # Tách tên trang và ID video từ liên kết
             page_name = link.split('@')[1].split('/')[0]
             video_id = link.split('/')[-1]
-            
             # Kiểm tra xem trang đã tồn tại trong từ điển chưa
             if page_name in link_dict:
                 # Nếu đã tồn tại, thêm ID video vào danh sách
@@ -391,18 +397,18 @@ class CrawlManage(object):
                 vidList.remove(vid)
         return vidList
 
-    def get_link_list(self, keyword) -> list:
+    def get_link_list(self, key) -> list:
         print('-------> GET LINK LIST <-------')
         vidList = []
         # with open()
         # keyword_dict, option = self.parse_keyword()
         if option == "search_post":
-            self.driver.get(self.config.search_post_tiktok + keyword)
+            self.driver.get(self.config.search_post_tiktok + key)
             # time.sleep(1)
             # captcha.check_captcha(self.driver)
             vidList = self.scroll(xpath=self.XPATH_VIDEO_SEARCH)
         if option == "search_post_android":
-            driver_appium = run_appium(keyword)
+            driver_appium = run_appium(key)
             post = 0
             link = None
             while post <= 3:
@@ -429,17 +435,14 @@ class CrawlManage(object):
                 # with open("link_list_android.txt", "r") as f:
                 #     vidList = [line.strip() for line in f.readlines()]
         elif option == "search_user": 
-            self.driver.get(keyword)
+            self.driver.get(key)
             time.sleep(5)
-            # captcha.check_captcha(self.driver)
-            vidList = self.scroll(xpath=self.XPATH_VIDEO_USER)
+            vidList = self.scroll(xpath=self.XPATH_VIDEO_PAGE)
         elif option == "tag":
-            self.driver.get(self.config.hashtag_tiktok + keyword)
-            # captcha.check_captcha(self.driver)
+            self.driver.get(self.config.hashtag_tiktok + key)
             vidList = self.scroll(xpath=self.XPATH_VIDEO_OTHER)
         elif option == "explore":
             self.driver.get(self.config.explore_tiktok)
-            # captcha.check_captcha(self.driver)
             div = self.driver.find_elements(
                 By.XPATH, '//*[@id="main-content-explore_page"]/div/div[1]/div[1]/div')
             for d in div:
