@@ -39,9 +39,27 @@ class PostTikTokExtractor(PostExtractor):
             infor_text = json.loads(infor_text)
             infor_text = infor_text["__DEFAULT_SCOPE__"]["webapp.video-detail"]["itemInfo"]["itemStruct"]
         except:
-            infor_text = self.driver.find_element(By.XPATH, '//*[@id="SIGI_STATE"]').get_attribute('text')
-            infor_text = json.loads(infor_text)
-            infor_text = infor_text["ItemModule"][self.source_id]
+            try:
+                infor_text = self.driver.find_element(By.XPATH, '//*[@id="SIGI_STATE"]').get_attribute('text')
+                infor_text = json.loads(infor_text)
+                infor_text = infor_text["ItemModule"][self.source_id]
+            except:
+                driver.refresh()
+                print("Refresh page")
+                time.sleep(2)
+                try: 
+                    infor_text = self.driver.find_element(By.XPATH, '//*[@id="__UNIVERSAL_DATA_FOR_REHYDRATION__"]').get_attribute('text')
+                    infor_text = json.loads(infor_text)
+                    infor_text = infor_text["__DEFAULT_SCOPE__"]["webapp.video-detail"]["itemInfo"]["itemStruct"]
+                except:
+                    try:
+                        infor_text = self.driver.find_element(By.XPATH, '//*[@id="SIGI_STATE"]').get_attribute('text')
+                        infor_text = json.loads(infor_text)
+                        infor_text = infor_text["ItemModule"][self.source_id]
+                    except Exception as e:
+                        print(f"Cant crawl {self.link}")
+                    
+                    
         self.infor_text = infor_text
         self.link = link
 
