@@ -57,7 +57,7 @@ class PostTikTokExtractor(PostExtractor):
                         infor_text = json.loads(infor_text)
                         infor_text = infor_text["ItemModule"][self.source_id]
                     except Exception as e:
-                        print(f"Cant crawl {self.link}")
+                        print(f"Cant crawl {self.link} by Exception {e}")
                     
                     
         self.infor_text = infor_text
@@ -218,7 +218,7 @@ class PostCommentExtractor(PostExtractor):
         return domain
 
     def extract_post_hashtag(self):
-        return ""
+        return []
 
     def extract_post_music(self):
         return ""
@@ -307,7 +307,7 @@ class PostReplyExtractor(PostExtractor):
         return domain
 
     def extract_post_hashtag(self):
-        return ""
+        return []
 
     def extract_post_music(self):
         return ""

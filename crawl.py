@@ -23,7 +23,7 @@ import clipboard
 from get_link_from_android import *
 import requests
 producer = KafkaProducer(bootstrap_servers=["192.168.143.54:9092"])
-api_address='http://172.168.200.200:8000'
+api_address='http://172.168.143.54:8668'
 
 
 
