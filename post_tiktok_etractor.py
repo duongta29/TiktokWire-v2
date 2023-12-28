@@ -57,9 +57,7 @@ class PostTikTokExtractor(PostExtractor):
                         infor_text = json.loads(infor_text)
                         infor_text = infor_text["ItemModule"][self.source_id]
                     except Exception as e:
-                        print(f"Cant crawl {self.link} by Exception {e}")
-                    
-                    
+                        print(f"Cant crawl {self.link} by Exception {e}")      
         self.infor_text = infor_text
         self.link = link
 

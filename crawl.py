@@ -111,8 +111,9 @@ class CrawlManage(object):
                 pass
             data = json.loads(data)
             list_comment = data["comments"]
-            for comment in list_comment:
-                self.comments.append(comment) 
+            if list_comment is not None:
+                for comment in list_comment:
+                    self.comments.append(comment) 
         if "comment/list/reply/?WebIdLastTime" in request.url:
             data = sw_decode(request.response.body, request.response.headers.get('Content-Encoding', 'identity'))
             try:
@@ -121,8 +122,9 @@ class CrawlManage(object):
                 pass
             data = json.loads(data)
             list_reply = data["comments"]
-            for reply in list_reply:
-                self.reply.append(reply)
+            if list_reply is not None:
+                for reply in list_reply:
+                    self.reply.append(reply)
 
     def scroll_comment(self):
             cmts = []
@@ -191,8 +193,7 @@ class CrawlManage(object):
             # self.check_login_div()
             # time.sleep(3)
             print(f" >>> Crawling: {link} ...")
-            post_extractor: PostTikTokExtractor = PostTikTokExtractor(
-                driver=self.driver, link=link, source_id=source_id)
+            post_extractor: PostTikTokExtractor = PostTikTokExtractor(driver=self.driver, link=link, source_id=source_id)
             post = post_extractor.extract()
             retry_time = 0
             def retry_extract(post, retry_time):
@@ -217,7 +218,7 @@ class CrawlManage(object):
                 # update post to data_crawled and write post to result
                 page_name = link.split('@')[1].split('/')[0]
                 video_id = link.split('/')[-1]
-                self.insert(table_name="tiktok_video",object_id=page_name, links=[video_id]) 
+                # self.insert(table_name="tiktok_video",object_id=page_name, links=[video_id]) 
                 update_json_file(file_path="data_crawled.json", new_link=link)
             # crawl cmt and push kafka
             write_post_to_file(post=post)
@@ -339,17 +340,18 @@ class CrawlManage(object):
                 link_dict[page_name] = [video_id]
     
     def check_link_crawled(self, link):
-        id_check = {}
-        page_name = link.split('@')[1].split('/')[0]
-        video_id = link.split('/')[-1]
-        data_crawled = self.get_links(table_name="tiktok_video", object_id= page_name)
-        if data_crawled:
-            if video_id in data_crawled["links"]:
-                return True
-            else:
-                return False
-        else:
-            return False
+        # id_check = {}
+        # page_name = link.split('@')[1].split('/')[0]
+        # video_id = link.split('/')[-1]
+        # data_crawled = self.get_links(table_name="tiktok_video", object_id= page_name)
+        # if data_crawled:
+        #     if video_id in data_crawled["links"]:
+        #         return True
+        #     else:
+        #         return False
+        # else:
+        #     return False
+        return False
 
     def scroll(self, xpath):
         vidList = []
