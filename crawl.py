@@ -50,6 +50,7 @@ class CrawlManage(object):
 
     def __init__(self, driver = webdriver.Chrome(options=chrome_options) , config=config) -> None:
         self.driver = driver
+        self.driver.set_page_load_timeout(25)
         self.config = config
         self.actions = ActionChains(self.driver)
         self.link = None
@@ -293,7 +294,6 @@ class CrawlManage(object):
                 break
     
     def run(self):
-        self.driver.set_page_load_timeout(25)
         try:
             self.driver.get("https://www.tiktok.com/")
             time.sleep(2)
@@ -328,10 +328,11 @@ class CrawlManage(object):
                 time.sleep(30*60)
                 return self.run()
         except TimeoutException:
+            print("Time out, try again")
             self.driver.quit()
             time.sleep(15*60)
-            self.driver = webdriver.Chrome(options=chrome_options)
-            return self.run()
+            crawl = CrawlManage()
+            return crawl.run()
         
     def shorten_links(tiktok_links):
         link_dict = {}
@@ -466,10 +467,7 @@ class CrawlManage(object):
                 # with open("link_list_android.txt", "r") as f:
                 #     vidList = [line.strip() for line in f.readlines()]
         elif option == "search_user":
-            try: 
-                self.driver.get(key)
-            except:
-                
+            self.driver.get(key)
             time.sleep(5)
             vidList = self.scroll(xpath=self.XPATH_VIDEO_PAGE)
         elif option == "tag":
