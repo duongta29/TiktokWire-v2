@@ -245,7 +245,10 @@ class CrawlManage(object):
                 else:
                     return self.crawl_post(link)
             except:
-                return self.crawl_post(link)
+                self.driver.quit()
+                time.sleep(60*15)
+                self.driver = webdriver.Chrome(options=chrome_options)
+                return self.run()
             
     def push_kafka(self, posts, comments):
         if option == "update_post":
