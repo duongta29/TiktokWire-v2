@@ -21,6 +21,7 @@ from es import *
 from datetime import datetime, timedelta
 import clipboard
 from get_link_from_android import *
+from selenium.common.exceptions import TimeoutException
 import requests
 producer = KafkaProducer(bootstrap_servers=["192.168.143.54:9092"])
 api_address='http://172.168.143.54:8668'
@@ -245,10 +246,7 @@ class CrawlManage(object):
                 else:
                     return self.crawl_post(link)
             except:
-                self.driver.quit()
-                time.sleep(60*15)
-                self.driver = webdriver.Chrome(options=chrome_options)
-                return self.run()
+                return self.crawl_post(link)
             
     def push_kafka(self, posts, comments):
         if option == "update_post":
@@ -295,37 +293,44 @@ class CrawlManage(object):
                 break
     
     def run(self):
-        self.driver.get("https://www.tiktok.com/")
-        time.sleep(2)
-        captcha.check_captcha(self.driver)
-        ttLogin = TiktokLogin(self.driver, username = "babysunny2906")
+        self.driver.set_page_load_timeout(25)
         try:
-            ttLogin.loginTiktokwithCookie()
-        except Exception as e:
-            print("Retry to login Exception {e}")
-            print("Try login with pass and save new cookie")
-            new_cookies = ttLogin.save_cookie()
-            if new_cookies:
-                print("Done save new cookie")
-        print("Start crawl")
-        key_search = []
-        # time.sleep(3)
-        if option == "update_post":
-            start_time_run = data_config["mode"]["start_time_run"]
-            schedule.every().day.at(start_time_run).do(self.update_post)
-            while True:
-                schedule.run_pending()
-                time.sleep(1)
-        else:
-            key_search = self.parse_keyword()
-            for key in key_search:
-                link_list = self.get_link_list(key)
-                for link in link_list:
-                    start = time.time()
-                    self.crawl_post(link)
-                    end = time.time()
-                    print(f"Time for video {link} is {end - start}")
-            time.sleep(30*60)
+            self.driver.get("https://www.tiktok.com/")
+            time.sleep(2)
+            captcha.check_captcha(self.driver)
+            ttLogin = TiktokLogin(self.driver, username = "babysunny2906")
+            try:
+                ttLogin.loginTiktokwithCookie()
+            except Exception:
+                # print("Retry to login Exception {e}")
+                print("Try login with pass and save new cookie")
+                new_cookies = ttLogin.save_cookie()
+                if new_cookies:
+                    print("Done save new cookie")
+            print("Start crawl")
+            key_search = []
+            # time.sleep(3)
+            if option == "update_post":
+                start_time_run = data_config["mode"]["start_time_run"]
+                schedule.every().day.at(start_time_run).do(self.update_post)
+                while True:
+                    schedule.run_pending()
+                    time.sleep(1)
+            else:
+                key_search = self.parse_keyword()
+                for key in key_search:
+                    link_list = self.get_link_list(key)
+                    for link in link_list:
+                        start = time.time()
+                        self.crawl_post(link)
+                        end = time.time()
+                        print(f"Time for video {link} is {end - start}")
+                time.sleep(30*60)
+                return self.run()
+        except TimeoutException:
+            self.driver.quit()
+            time.sleep(15*60)
+            self.driver = webdriver.Chrome(options=chrome_options)
             return self.run()
         
     def shorten_links(tiktok_links):
@@ -460,8 +465,11 @@ class CrawlManage(object):
                 post += 1
                 # with open("link_list_android.txt", "r") as f:
                 #     vidList = [line.strip() for line in f.readlines()]
-        elif option == "search_user": 
-            self.driver.get(key)
+        elif option == "search_user":
+            try: 
+                self.driver.get(key)
+            except:
+                
             time.sleep(5)
             vidList = self.scroll(xpath=self.XPATH_VIDEO_PAGE)
         elif option == "tag":
