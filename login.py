@@ -2,7 +2,6 @@ from seleniumwire import webdriver
 import time
 from selenium.webdriver.common.by import By
 import json
-import config
 from account import Account
 import captcha
 
@@ -18,19 +17,13 @@ import captcha
 ### CLASS ###
 
 class TiktokLogin:
-    def __init__(self, driver, username):
+    def __init__(self, driver, account_config):
         self.driver = driver
-        self.username = username
-        self.account = self.get_account()
-        # self.user = account['user']
-        # self.password = account['password']
+        self.account = self.get_account(account_config)
+        
 
-    def get_account(self):
-        with open(config.account_path, "r") as f:
-            data = f.read()
-            data = json.loads(data)
-        account = Account(username=self.username,password=data[self.username]
-                          ["password"], cookies= data[self.username]["cookies"])
+    def get_account(self, account_config):
+        account = Account(username=account_config["username"],password=account_config["password"], cookies= account_config["cookies"])
         return account
 
     def loginTiktokwithPass(self):
@@ -56,16 +49,20 @@ class TiktokLogin:
         time.sleep(5)
 
     def save_cookie(self):
-        self.loginTiktokwithPass()
+        try:
+            self.loginTiktokwithPass()
+        except:
+            self.driver.refresh()
         try:
             cookies_list = self.driver.get_cookies()
             cookies_dict = {}
             for cookie in cookies_list:
                 cookies_dict[cookie['name']] = cookie['value']
             cookies = f"tt_csrf_token={cookies_dict.get('tt_csrf_token')}; tt_chain_token={cookies_dict.get('tt_chain_token')}; perf_feed_cache={cookies_dict.get('perf_feed_cache')}; tiktok_webapp_theme={cookies_dict.get('tiktok_webapp_theme')}; passport_fe_beating_status=false; s_v_web_id= {cookies_dict.get('s_v_web_id')}; passport_csrf_token_default={cookies_dict.get('passport_csrf_token_default')}; passport_csrf_token={cookies_dict.get('passport_csrf_token')}; multi_sids={cookies_dict.get('passport_csrf_token')}; cmpl_token={cookies_dict.get('cmpl_token')}; passport_auth_status={cookies_dict.get('passport_auth_status')}; passport_auth_status_ss={cookies_dict.get('passport_auth_status_ss')}; sid_guard={cookies_dict.get('sid_guard')}; uid_tt={cookies_dict.get('uid_tt')}; uid_tt_ss={cookies_dict.get('uid_tt_ss')}; sid_tt={cookies_dict.get('sid_tt')}; sessionid={cookies_dict.get('sessionid')}; sessionid_ss={cookies_dict.get('sessionid_ss')}; sid_ucp_v1={cookies_dict.get('sid_ucp_v1')}; ssid_ucp_v1={cookies_dict.get('ssid_ucp_v1')}; store-idc={cookies_dict.get('store-idc')}; store-country-code=vn; store-country-code-src=uid; tt-target-idc=alisg; tt-target-idc-sign={cookies_dict.get('tt-target-idc-sign')}; odin_tt={cookies_dict.get('odin_tt')}; ttwid={cookies_dict.get('ttwid')}; msToken={cookies_dict.get('msToken')}; passport_fe_beating_status=false"
+            self.account.cookies = cookies
             with open('db/account.json', 'r') as f:
                 data = json.load(f)
-            data[self.username]["cookies"] = cookies
+            data[self.account.username]["cookies"] = cookies
             with open('db/account.json', 'w') as f:
                 json.dump(data, f)
         except Exception as e:

@@ -1,4 +1,4 @@
-CHROMEDRIVER_PATH = './chromedriver/chromedriver.exe'
+CHROMEDRIVER_PATH = 'chromedriver.exe'
 # device_config_path = './config.json'
 account_path = './db/account.json'
 search_post_tiktok = 'https://www.tiktok.com/search/video?q='

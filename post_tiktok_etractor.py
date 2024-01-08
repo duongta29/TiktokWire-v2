@@ -1,20 +1,10 @@
 import datetime
-from typing import List, Optional
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
-from selenium.common.exceptions import NoSuchElementException
 from post_extractor import PostExtractor
-# from utils.datetime_utils import DatetimeUtils
-# from utils.log_utils import logger
-# from utils.string_utils import StringUtils
 import json
-import re
 import time
-import traceback
-from post_model import Post
-# from utils.format_time import format_time
-# from selenium_utils import SeleniumUtils
+
 
 def extract_timestamp(value):
     if isinstance(value, datetime.datetime):

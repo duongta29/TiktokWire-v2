@@ -1,25 +1,19 @@
 import json
+import os
 
-def update_json_file(file_path, new_link):
-    # Đọc tệp JSON hiện có
-    with open(file_path, 'r') as file:
-        data = json.load(file)
+def update_file_crawled(page_name, video_id):
+    folder_path = "dataCrawled"
+    file_path = os.path.join(folder_path, f"{page_name}.txt")
 
-    # Tách tên trang và ID video từ liên kết mới
-    page_name = new_link.split('@')[1].split('/')[0]
-    video_id = new_link.split('/')[-1]
-
-    # Kiểm tra xem trang đã tồn tại trong từ điển chưa
-    if page_name in data:
-        # Nếu đã tồn tại, thêm ID video vào danh sách
-        data[page_name].append(video_id)
+    # Kiểm tra xem tệp tin đã tồn tại hay chưa
+    if not os.path.exists(file_path):
+        # Tạo tệp tin mới nếu chưa tồn tại
+        with open(file_path, "w") as file:
+            file.write(video_id + "\n")
     else:
-        # Nếu chưa tồn tại, tạo một cặp key-value mới
-        data[page_name] = [video_id]
-
-    # Ghi từ điển đã cập nhật vào tệp JSON
-    with open(file_path, 'w') as file:
-        json.dump(data, file)
+        # Mở tệp tin và thêm video_id vào cuối tệp tin
+        with open(file_path, "a") as file:
+            file.write(video_id + "\n")
 
 def write_post_to_file(post):
     with open("result.txt", "a", encoding="utf-8") as file:

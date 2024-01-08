@@ -1,20 +1,20 @@
 from seleniumwire import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import time
 import json
 import schedule
 from seleniumwire.utils import decode as sw_decode
 import time
-import config 
+import config as cf
 import json
 import pickle
 from typing import List
 from post_tiktok_etractor import PostTikTokExtractor, PostCommentExtractor, PostReplyExtractor
 from utils.common_utils import CommonUtils
-import config
 import captcha
 from kafka import KafkaProducer
-from selenium.webdriver.common.action_chains import ActionChains
 from process_data import *
 from login import TiktokLogin
 from es import *
@@ -23,23 +23,10 @@ import clipboard
 from get_link_from_android import *
 from selenium.common.exceptions import TimeoutException
 import requests
+import os
 producer = KafkaProducer(bootstrap_servers=["192.168.143.54:9092"])
 api_address='http://172.168.143.54:8668'
 
-
-
-
-### OTHER ###
-with open(config.config_path, "r", encoding='latin-1') as f:
-    data = f.read()
-    data_config = json.loads(data)
-    option = data_config["mode"]["name"]
-    listArgument = data_config["listArgument"]
-
-chrome_options = webdriver.ChromeOptions()
-for item in listArgument:
-        chrome_options.add_argument(item)
-chrome_options.add_argument(f'--proxy-server={config.proxy}')
 
 
 class CrawlManage(object):
@@ -48,24 +35,42 @@ class CrawlManage(object):
     # XPATH_VIDEO_OTHER = '//*[@class="tiktok-x6y88p-DivItemContainerV2 e19c29qe9"]'
     XPATH_VIDEO_PAGE = '//*[@data-e2e="user-post-item-desc"]'
 
-    def __init__(self, driver = webdriver.Chrome(options=chrome_options) , config=config) -> None:
-        self.driver = driver
-        self.driver.set_page_load_timeout(25)
+    def __init__(self, config = None) -> None:
         self.config = config
-        self.actions = ActionChains(self.driver)
+        chrome_options = self.get_chrome_arg()
+        self.driver = webdriver.Chrome(options=chrome_options, seleniumwire_options = self.seleniumwire_options())
+        self.wait = WebDriverWait(self.driver, 10)
+        self.mode = self.config["mode"]["name"]
+        self.driver.set_page_load_timeout(40)
         self.link = None
+        self.stop_event = None
         self.comments = []
         self.reply = []
+        
+    def seleniumwire_options(self):
+        seleniumwire_options = {
+                                    'disable_encoding': True ,
+                                    'request_storage': 'memory',
+                                    'request_storage_max_size': 100,
+                                }
+        return seleniumwire_options
+        
+    def get_chrome_arg(self):
+        listArgument = self.config["listArgument"]
+        proxy_config = self.config["account"]["proxy"]
+        chrome_options = webdriver.ChromeOptions()
+        for item in listArgument:
+                chrome_options.add_argument(item)
+        chrome_options.add_argument(f'--proxy-server={proxy_config}')
+        return chrome_options
 
     def parse_keyword(self) -> List[str]:
         keyword_list: List[str] = []
-        with open(self.config.config_path, "r", encoding='utf-8') as f:
-            data = f.read()
-            keyword_list_raw = json.loads(data)
-            if option == "search_user":
-                keyword_list = keyword_list_raw["mode"][f"list_page"]
-            elif option == "search_post_android" or option == "search_post":
-                keyword_list = keyword_list_raw["mode"]["keyword"]
+        
+        if self.mode == "search_user":
+            keyword_list = self.config["mode"][f"list_page"]
+        elif self.mode == "search_post_android" or self.mode == "search_post":
+                keyword_list = self.config["mode"]["keyword"]
         return keyword_list
 
     def check_login_div(self):
@@ -85,6 +90,7 @@ class CrawlManage(object):
         for comment_dict in list_comment:
             comment_extractor: PostCommentExtractor = PostCommentExtractor(driver=self.driver, comment_dict = comment_dict)
             comment = comment_extractor.extract()
+            del comment_extractor
             comments.append(comment)
             write_post_to_file(post=comment)
             try: 
@@ -93,6 +99,7 @@ class CrawlManage(object):
                     for reply_dict in list_reply:
                         reply_extractor: PostReplyExtractor = PostReplyExtractor(driver = self.driver, reply_dict = reply_dict) 
                         reply = reply_extractor.extract()
+                        del reply_extractor
                         comments.append(reply)
                         write_post_to_file(post=reply)
             except Exception as e:
@@ -100,6 +107,7 @@ class CrawlManage(object):
         for reply_dict in list_replies:
             reply_extractor: PostReplyExtractor = PostReplyExtractor(driver = self.driver, reply_dict = reply_dict) 
             reply = reply_extractor.extract()
+            del reply_extractor
             comments.append(reply)
             write_post_to_file(post = reply)
         return comments
@@ -197,6 +205,7 @@ class CrawlManage(object):
             print(f" >>> Crawling: {link} ...")
             post_extractor: PostTikTokExtractor = PostTikTokExtractor(driver=self.driver, link=link, source_id=source_id)
             post = post_extractor.extract()
+            del post_extractor
             retry_time = 0
             def retry_extract(post, retry_time):
                 while not post.is_valid():
@@ -213,15 +222,18 @@ class CrawlManage(object):
                 return
             retry_extract(post, retry_time)
             posts.append(post)
-            if option == "update_post":
+            if self.mode == "update_post":
                 #sroll to crawl comment
                 self.scroll_comment()
             else:
                 # update post to data_crawled and write post to result
                 page_name = link.split('@')[1].split('/')[0]
                 video_id = link.split('/')[-1]
-                # self.insert(table_name="tiktok_video",object_id=page_name, links=[video_id]) 
-                update_json_file(file_path="data_crawled.json", new_link=link)
+                # try:
+                #     self.insert(table_name="tiktok_video",object_id=page_name, links=video_id) 
+                # except:
+                #     print("Cant insert link to api")
+                update_file_crawled(page_name=page_name, video_id=video_id)
             # crawl cmt and push kafka
             write_post_to_file(post=post)
             if posts != [] : 
@@ -250,7 +262,7 @@ class CrawlManage(object):
                 return self.crawl_post(link)
             
     def push_kafka(self, posts, comments):
-        if option == "update_post":
+        if self.mode == "update_post":
             topic = "osint-posts-update"
         else:
             topic = "lnmxh"
@@ -265,7 +277,7 @@ class CrawlManage(object):
                 return 0
        
     def get_es(self):
-        range_date = data_config["mode"]["range_date"]
+        range_date = self.config["mode"]["range_date"]
         format_str = "%m/%d/%Y %H:%M:%S"
         now = datetime.now()
         link_to_update = []
@@ -292,26 +304,39 @@ class CrawlManage(object):
                 print(f"Time for video {link} is {end - start}")
             else:
                 break
+    def interceptor(self,request):
+    # Block PNG, JPEG and GIF images
+        if request.path.endswith(('.png', '.jpg', '.gif')):
+            request.abort()
+
+
     
     def run(self):
         try:
+            self.driver.request_interceptor = self.interceptor
             self.driver.get("https://www.tiktok.com/")
+            # self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
             time.sleep(2)
             captcha.check_captcha(self.driver)
-            ttLogin = TiktokLogin(self.driver, username = "babysunny2906")
+            ttLogin = TiktokLogin(self.driver,account_config=self.config["account"])
             try:
                 ttLogin.loginTiktokwithCookie()
             except Exception:
+                try:
+                    self.driver.refresh()
+                    ttLogin.loginTiktokwithCookie()
+                except:
                 # print("Retry to login Exception {e}")
-                print("Try login with pass and save new cookie")
-                new_cookies = ttLogin.save_cookie()
-                if new_cookies:
-                    print("Done save new cookie")
+                    print("Try login with pass and save new cookie")
+                    new_cookies = ttLogin.save_cookie()
+                    if new_cookies:
+                        print("Done save new cookie")
+            del ttLogin
             print("Start crawl")
             key_search = []
             # time.sleep(3)
-            if option == "update_post":
-                start_time_run = data_config["mode"]["start_time_run"]
+            if self.mode == "update_post":
+                start_time_run = self.config["mode"]["start_time_run"]
                 schedule.every().day.at(start_time_run).do(self.update_post)
                 while True:
                     schedule.run_pending()
@@ -319,16 +344,25 @@ class CrawlManage(object):
             else:
                 key_search = self.parse_keyword()
                 for key in key_search:
-                    link_list = self.get_link_list(key)
-                    for link in link_list:
-                        start = time.time()
-                        self.crawl_post(link)
-                        end = time.time()
-                        print(f"Time for video {link} is {end - start}")
-                time.sleep(30*60)
-                return self.run()
+                    if self.stop_event.is_set():
+                        self.driver.quit()
+                        break
+                    else:
+                        link_list = self.get_link_list(key)
+                        for link in link_list:
+                            if self.stop_event.is_set():
+                                self.driver.quit()
+                                break
+                            start = time.time()
+                            self.crawl_post(link)
+                            end = time.time()
+                            print(f"Time for video {link} is {end - start}")
+            # del self.driver.request_interceptor
+            print("Sleep 30ph")
+            time.sleep(30*60)
+            return self.run() 
         except TimeoutException:
-            print("Time out, try again")
+            print("Time out, try again in 15mins")
             self.driver.quit()
             time.sleep(15*60)
             crawl = CrawlManage()
@@ -349,18 +383,33 @@ class CrawlManage(object):
                 link_dict[page_name] = [video_id]
     
     def check_link_crawled(self, link):
-        # id_check = {}
-        # page_name = link.split('@')[1].split('/')[0]
-        # video_id = link.split('/')[-1]
-        # data_crawled = self.get_links(table_name="tiktok_video", object_id= page_name)
-        # if data_crawled:
-        #     if video_id in data_crawled["links"]:
-        #         return True
+        page_name = link.split('@')[1].split('/')[0]
+        video_id = link.split('/')[-1]
+        # try:
+        #     data_crawled = self.get_links(table_name="tiktok_video", object_id= page_name)
+        #     if data_crawled:
+        #         if video_id in data_crawled["links"]:
+        #             return True
+        #         else:
+        #             return False
         #     else:
         #         return False
-        # else:
-        #     return False
+        # except:
+        # print("Cant check link in api")
+        folder_path = "dataCrawled"
+        # Kiểm tra xem file có tên trùng với page_name tồn tại trong thư mục hay không
+        file_path = os.path.join(folder_path, f"{page_name}.txt")
+        if not os.path.exists(file_path):
+            return False
+        # Đọc nội dung của file
+        with open(file_path, "r") as file:
+            content = file.read().splitlines()
+        # Kiểm tra xem video_id có trùng với phần tử nào trong nội dung hay không
+        if video_id in content:
+            return True
         return False
+            
+        # return False
 
     def scroll(self, xpath):
         vidList = []
@@ -373,13 +422,14 @@ class CrawlManage(object):
             pass
         count = 1
         vid_list_elem = []
-        if option == "search_user":
+        if self.mode == "search_user":
+            # time.sleep(5)
             try:
                 no_post = self.driver.find_element(By.XPATH, '//*[@class="tiktok-1ovqurc-PTitle emuynwa1"]').text()
                 print("No post")
             except:
                 no_post =""
-            while(len(vid_list_elem) != count and len(vid_list_elem) < self.config.count_of_vid and no_post != "No content"):
+            while(len(vid_list_elem) != count and len(vid_list_elem) < cf.count_of_vid and no_post != "No content"):
                 # data-e2e="search-common-link"
                 count = len(vid_list_elem)
                 try:
@@ -404,8 +454,8 @@ class CrawlManage(object):
                     "window.scrollTo(0, document.body.scrollHeight);")
                 time.sleep(2)
         else:
-        # time.sleep(3)
-            while(len(vid_list_elem) != count and len(vid_list_elem) < self.config.count_of_vid):
+            while(len(vid_list_elem) != count and len(vid_list_elem) < cf.count_of_vid):
+                    
                     # data-e2e="search-common-link"
                     count = len(vid_list_elem)
                     try:
@@ -422,11 +472,13 @@ class CrawlManage(object):
             if len(vidList) == 0:
                 print("Something went wrong")
                 self.driver.refresh()
+                time.sleep(10)
                 return self.scroll(xpath)
             print("Count of links: ", len(vidList))
             for vid in vidList:
                 check_vid = self.check_link_crawled(vid)
-                vidList.remove(vid)
+                if check_vid:
+                    vidList.remove(vid)
         return vidList
 
     def get_link_list(self, key) -> list:
@@ -434,12 +486,13 @@ class CrawlManage(object):
         vidList = []
         # with open()
         # keyword_dict, option = self.parse_keyword()
-        if option == "search_post":
-            self.driver.get(self.config.search_post_tiktok + key)
+        if self.mode == "search_post":
+            self.driver.get(cf.search_post_tiktok + key)
+            self.wait.until(lambda driver: driver.execute_script('return document.readyState') == 'complete')
             # time.sleep(1)
             # captcha.check_captcha(self.driver)
             vidList = self.scroll(xpath=self.XPATH_VIDEO_SEARCH)
-        if option == "search_post_android":
+        if self.mode == "search_post_android":
             driver_appium = run_appium(key)
             post = 0
             link = None
@@ -466,19 +519,20 @@ class CrawlManage(object):
                 post += 1
                 # with open("link_list_android.txt", "r") as f:
                 #     vidList = [line.strip() for line in f.readlines()]
-        elif option == "search_user":
+        elif self.mode == "search_user":
             self.driver.get(key)
+            self.wait.until(lambda driver: driver.execute_script('return document.readyState') == 'complete')
             time.sleep(5)
             vidList = self.scroll(xpath=self.XPATH_VIDEO_PAGE)
-        elif option == "tag":
-            self.driver.get(self.config.hashtag_tiktok + key)
+        elif self.mode == "tag":
+            self.driver.get(cf.hashtag_tiktok + key)
             vidList = self.scroll(xpath=self.XPATH_VIDEO_OTHER)
-        elif option == "explore":
-            self.driver.get(self.config.explore_tiktok)
+        elif self.mode == "explore":
+            self.driver.get(cf.explore_tiktok)
             div = self.driver.find_elements(
                 By.XPATH, '//*[@id="main-content-explore_page"]/div/div[1]/div[1]/div')
             for d in div:
-                if d.text == self.config.explore_option:
+                if d.text == cf.explore_option:
                     d.click()
                     break
             vidList = self.scroll(xpath=self.XPATH_VIDEO_OTHER)
