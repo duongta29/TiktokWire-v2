@@ -43,7 +43,7 @@ class CrawlManage(object):
         self.driver = webdriver.Chrome(service=chrome_service,options=chrome_options,seleniumwire_options = self.seleniumwire_options())
         self.wait = WebDriverWait(self.driver, 10)
         self.mode = self.config["mode"]["name"]
-        self.driver.set_page_load_timeout(60)
+        self.driver.set_page_load_timeout(200)
         self.link = None
         self.stop_event = None
         self.comments = []
@@ -63,7 +63,7 @@ class CrawlManage(object):
         chrome_options = webdriver.ChromeOptions()
         for item in listArgument:
                 chrome_options.add_argument(item)
-        chrome_options.add_argument(f'--proxy-server={proxy_config}')
+        # chrome_options.add_argument(f'--proxy-server={proxy_config}')
         return chrome_options
 
     def parse_keyword(self) -> List[str]:
