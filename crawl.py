@@ -2,6 +2,7 @@ from seleniumwire import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service
 import time
 import json
 import schedule
@@ -24,8 +25,8 @@ from get_link_from_android import *
 from selenium.common.exceptions import TimeoutException
 import requests
 import os
-producer = KafkaProducer(bootstrap_servers=["192.168.143.54:9092"])
-api_address='http://172.168.143.54:8668'
+producer = KafkaProducer(bootstrap_servers=["172.168.200.202:9092"])
+api_address='http://172.168.200.200:8000'
 
 
 
@@ -38,10 +39,11 @@ class CrawlManage(object):
     def __init__(self, config = None) -> None:
         self.config = config
         chrome_options = self.get_chrome_arg()
-        self.driver = webdriver.Chrome(options=chrome_options, seleniumwire_options = self.seleniumwire_options())
+        chrome_service = Service("chromedriver.exe")
+        self.driver = webdriver.Chrome(service=chrome_service,options=chrome_options,seleniumwire_options = self.seleniumwire_options())
         self.wait = WebDriverWait(self.driver, 10)
         self.mode = self.config["mode"]["name"]
-        self.driver.set_page_load_timeout(40)
+        self.driver.set_page_load_timeout(60)
         self.link = None
         self.stop_event = None
         self.comments = []
@@ -49,8 +51,8 @@ class CrawlManage(object):
         
     def seleniumwire_options(self):
         seleniumwire_options = {
-                                    'disable_encoding': True ,
-                                    'request_storage': 'memory',
+                                    # 'disable_encoding': True ,
+                                    # 'request_storage': 'memory',
                                     'request_storage_max_size': 100,
                                 }
         return seleniumwire_options
@@ -265,7 +267,7 @@ class CrawlManage(object):
         if self.mode == "update_post":
             topic = "osint-posts-update"
         else:
-            topic = "lnmxh"
+            topic = "osint-posts-raw"
         if len(posts) > 0:
                 bytes_obj = pickle.dumps([ob.__dict__ for ob in posts])
                 producer.send(topic, bytes_obj)
@@ -313,8 +315,8 @@ class CrawlManage(object):
     
     def run(self):
         try:
-            self.driver.request_interceptor = self.interceptor
-            self.driver.get("https://www.tiktok.com/")
+            # self.driver.request_interceptor = self.interceptor
+            self.driver.get("https://vt.tiktok.com/")
             # self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
             time.sleep(2)
             captcha.check_captcha(self.driver)

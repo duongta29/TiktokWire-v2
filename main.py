@@ -36,10 +36,6 @@ def check_list_config(running_ids):
                     threads.pop(id)
         time.sleep(10)
                 
-        
-
-
-
 if __name__ == '__main__':
     check_list_config(running_ids=[])
     

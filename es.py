@@ -4,7 +4,7 @@ from datetime import datetime
 def get_link_es(type_list,gte,lte):
     link = []
     for _type in type_list:
-        es = Elasticsearch(["http://192.168.143.54:9200"])
+        es = Elasticsearch(["http://172.168.200.202:9200"])
         body1 ={
         "query": {
             "bool": {
